@@ -1,9 +1,0 @@
-{
-  "examTitle": "Tourism Management 101",
-  "score": 85,
-  "grade": "A",
-  "answers": [
-    {"question": "Q1 text", "studentAnswer": "A", "correctAnswer": "A", "score": 1},
-    ...
-  ]
-}
