@@ -84,15 +84,86 @@ export async function autoSubmitExam() {
     }
 }
 
-// -------------------- Proctoring Warnings -------------------- //
+// -------------------- Proctoring Warnings (Tab + Camera + Mic) -------------------- //
 export function initProctoring() {
     let warnings = 0;
+
+    // -------------------- Tab / Window Minimize -------------------- //
     window.onblur = () => {
         warnings++;
-        alert(`Warning ${warnings}/3: Tab minimized`);
-        if(warnings >= 3) autoSubmitExam();
+        alert(`Tab Warning ${warnings}/3`);
+        if (warnings >= 3) autoSubmitExam();
     };
-    // Future: integrate camera & mic detection
+
+    // -------------------- Camera Motion Detection -------------------- //
+    let cameraStream, lastFrameData;
+    let cameraWarnings = 0;
+
+    async function initCameraDetection() {
+        try {
+            cameraStream = await navigator.mediaDevices.getUserMedia({ video: true });
+            const video = document.createElement("video");
+            video.srcObject = cameraStream;
+            video.play();
+
+            const canvas = document.createElement("canvas");
+            const ctx = canvas.getContext("2d");
+
+            setInterval(() => {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const frameData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+
+                if (lastFrameData) {
+                    let diff = 0;
+                    for (let i = 0; i < frameData.length; i += 4) {
+                        diff += Math.abs(frameData[i] - lastFrameData[i]);
+                    }
+                    if (diff > 1000000) { // threshold for motion
+                        cameraWarnings++;
+                        alert(`Camera Warning ${cameraWarnings}/3: Suspicious movement`);
+                        if (cameraWarnings >= 3) autoSubmitExam();
+                    }
+                }
+                lastFrameData = frameData;
+            }, 1000);
+        } catch (err) {
+            console.warn("Camera detection failed:", err);
+        }
+    }
+
+    // -------------------- Microphone Noise Detection -------------------- //
+    let micWarnings = 0;
+
+    async function initMicDetection() {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const source = audioCtx.createMediaStreamSource(stream);
+            const analyser = audioCtx.createAnalyser();
+            source.connect(analyser);
+            analyser.fftSize = 256;
+
+            const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+            setInterval(() => {
+                analyser.getByteFrequencyData(dataArray);
+                const average = dataArray.reduce((a,b) => a+b)/dataArray.length;
+                if (average > 50) { // noise threshold
+                    micWarnings++;
+                    alert(`Mic Warning ${micWarnings}/3: Loud noise detected`);
+                    if (micWarnings >= 3) autoSubmitExam();
+                }
+            }, 1000);
+        } catch (err) {
+            console.warn("Mic detection failed:", err);
+        }
+    }
+
+    // Start camera and mic detection
+    initCameraDetection();
+    initMicDetection();
 }
 
 // -------------------- Collect Answers -------------------- //
