@@ -1,8 +1,3 @@
-const PORT = process.env.PORT || 5000;
-
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
@@ -14,6 +9,7 @@ const adminRoutes = require("./routes/adminRoutes");
 const attemptRoutes = require("./routes/attemptRoutes");
 
 const app = express();
+const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors());
@@ -25,11 +21,13 @@ app.use("/api/exams", examRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/attempts", attemptRoutes);
 
-// Connect to MongoDB
-const PORT = process.env.PORT || 5000;
+// Connect to MongoDB and start server
 mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
     .then(() => {
         console.log("MongoDB connected");
         app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
     })
-    .catch(err => console.error(err));
+    .catch(err => {
+        console.error("MongoDB connection error:", err);
+        process.exit(1); // Exit if DB fails
+    });
